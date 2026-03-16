@@ -1,0 +1,14 @@
+app = "grand-casino-relay"   # cambia esto a un nombre único (solo letras minúsculas y guiones)
+primary_region = "mad"       # Madrid; usa "cdg" París, "lhr" Londres, "iad" Virginia
+
+[build]
+
+[[services]]
+  internal_port = 55320
+  protocol      = "tcp"
+
+  [[services.ports]]
+    port = 55320
+
+[machines]
+  min_machines_running = 1
