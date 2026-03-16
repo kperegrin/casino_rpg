@@ -54,6 +54,9 @@ ZONE_NAMES = {
     "poker":     "Poker",
     "blackjack": "Blackjack",
     "roulette":  "Ruleta",
+    "slots":     "Tragaperras",
+    "bowling":   "Bowling",
+    "dice_duel": "Dados",
 }
 ZONE_INTERACT = {}
 
@@ -156,12 +159,15 @@ class TiledWorld:
         """Zones per defecte si no hi ha capa 'zones' al TMX."""
         global ZONES, ZONE_INTERACT
         ZONES = {
-            "poker":     pygame.Rect(4*TILE,  3*TILE,  12*TILE, 10*TILE),
-            "blackjack": pygame.Rect(22*TILE, 3*TILE,  12*TILE, 10*TILE),
-            "roulette":  pygame.Rect(13*TILE, 22*TILE, 14*TILE, 12*TILE),
+            "poker":     pygame.Rect(2*TILE,   2*TILE,  14*TILE, 12*TILE),
+            "blackjack": pygame.Rect(20*TILE,  2*TILE,  16*TILE, 12*TILE),
+            "roulette":  pygame.Rect(10*TILE, 16*TILE,  28*TILE, 14*TILE),
+            "slots":     pygame.Rect(2*TILE,  16*TILE,   8*TILE, 12*TILE),
+            "bowling":   pygame.Rect(38*TILE,  4*TILE,  10*TILE, 32*TILE),
+            "dice_duel": pygame.Rect(10*TILE, 32*TILE,  28*TILE,  6*TILE),
         }
         ZONE_INTERACT = {
-            k: pygame.Rect(v.centerx - TILE, v.centery - TILE, TILE*2, TILE*2)
+            k: pygame.Rect(v.centerx - TILE, v.centery - TILE, TILE * 2, TILE * 2)
             for k, v in ZONES.items()
         }
 
@@ -265,6 +271,9 @@ class TiledWorld:
             "poker":     C["neon_red"],
             "blackjack": C["neon_cyan"],
             "roulette":  C["neon_gold"],
+            "slots":     (200, 100, 255),
+            "bowling":   (100, 200, 255),
+            "dice_duel": (180, 255, 120),
         }
         a = int(20 + 15 * math.sin(self._light_t * 2.5))
         for zone_key, zone in ZONES.items():
@@ -302,22 +311,68 @@ class TiledWorld:
 # ════════════════════════════════════════════════════════════════════
 def _build_fallback_map():
     m = [[FLOOR] * MAP_W for _ in range(MAP_H)]
+
+    # Paredes exteriores
     for x in range(MAP_W):
         m[0][x] = WALL; m[MAP_H-1][x] = WALL
     for y in range(MAP_H):
         m[y][0] = WALL; m[y][MAP_W-1] = WALL
+
+    # ── Sala Norte-Izquierda: POKER (tiles 2-13, 2-13) ──────────
     for y in range(2, 14):
-        for x in range(2, 16):   m[y][x] = CARPET
+        for x in range(2, 16):
+            m[y][x] = CARPET
+
+    # ── Sala Norte-Derecha: BLACKJACK (tiles 20-13, 2-13) ───────
     for y in range(2, 14):
-        for x in range(20, 36):  m[y][x] = CARPET
-    for y in range(20, 36):
-        for x in range(10, 38):  m[y][x] = CARPET
+        for x in range(20, 36):
+            m[y][x] = CARPET
+
+    # ── Pasillo central Norte ────────────────────────────────────
+    for y in range(2, 14):
+        for x in range(16, 20):
+            m[y][x] = FLOOR
+
+    # ── Sala Central: RULETA (tiles 10-36, 16-30) ───────────────
+    for y in range(16, 30):
+        for x in range(10, 38):
+            m[y][x] = CARPET
+
+    # ── Sala Oeste: TRAGAPERRAS (tiles 2-14, 16-28) ─────────────
+    for y in range(16, 28):
+        for x in range(2, 10):
+            m[y][x] = CARPET
+
+    # ── Sala Este: BOWLING (tiles 38-47, 4-35) ──────────────────
+    for y in range(4, 36):
+        for x in range(38, 48):
+            m[y][x] = CARPET
+    # Calle de bolos (madera)
+    for y in range(8, 35):
+        for x in range(39, 47):
+            m[y][x] = FLOOR
+
+    # ── Sala Sur: DADOS (tiles 10-36, 32-38) ────────────────────
+    for y in range(32, 38):
+        for x in range(10, 38):
+            m[y][x] = CARPET
+
+    # ── BAR central (separador norte-centro) ────────────────────
     for x in range(16, 22):
-        for y in range(5, 10):   m[y][x] = BAR
-    for pos in [(1,1),(1,MAP_W-2),(MAP_H-2,1),(MAP_H-2,MAP_W-2),(7,18),(7,19),(20,18),(20,19)]:
+        for y in range(14, 16):
+            m[y][x] = BAR
+
+    # ── Lámparas decorativas ─────────────────────────────────────
+    for pos in [
+        (1,1),(1,MAP_W-2),(MAP_H-2,1),(MAP_H-2,MAP_W-2),
+        (7,18),(7,19),(20,18),(20,19),
+        (16,5),(16,25),(28,5),(28,25),
+        (16,40),(28,40),(22,7),(22,32),
+    ]:
         y_, x_ = pos
         if 0 < y_ < MAP_H-1 and 0 < x_ < MAP_W-1:
             m[y_][x_] = LAMP
+
     return m
 
 _FALLBACK_MAP = _build_fallback_map()
@@ -434,6 +489,60 @@ def _draw_roulette_table(surf, cx, cy, cam_x, cam_y):
     pygame.draw.circle(surf,C["neon_gold"],(sx,sy),5)
 
 
+def _draw_slot_machine(surf, cx, cy, cam_x, cam_y):
+    sx, sy = cx - cam_x, cy - cam_y
+    # Cuerpo
+    pygame.draw.rect(surf, (60, 20, 60), (sx-18, sy-28, 36, 52), border_radius=6)
+    pygame.draw.rect(surf, (120, 40, 120), (sx-16, sy-26, 32, 48), border_radius=5)
+    pygame.draw.rect(surf, C["neon_gold"], (sx-16, sy-26, 32, 48), 2, border_radius=5)
+    # Pantalla con rodillos
+    pygame.draw.rect(surf, (20, 10, 20), (sx-12, sy-20, 24, 22), border_radius=3)
+    for i in range(3):
+        rx = sx - 8 + i * 8
+        pygame.draw.rect(surf, (40, 200, 40), (rx, sy-18, 6, 18), border_radius=2)
+    # Botón
+    pygame.draw.circle(surf, (200, 30, 30), (sx, sy+16), 6)
+    pygame.draw.circle(surf, (255, 80, 80), (sx, sy+16), 4)
+    # Palanca
+    pygame.draw.line(surf, C["table_edge"], (sx+18, sy-10), (sx+24, sy+8), 3)
+    pygame.draw.circle(surf, (220, 40, 40), (sx+24, sy+8), 5)
+
+
+def _draw_bowling_lane(surf, cx, cy, cam_x, cam_y):
+    sx, sy = cx - cam_x, cy - cam_y
+    # Calle
+    pygame.draw.rect(surf, (180, 140, 80), (sx-30, sy-80, 60, 160), border_radius=4)
+    pygame.draw.rect(surf, (210, 170, 110), (sx-26, sy-76, 52, 152), border_radius=3)
+    # Líneas de la calle
+    for i in range(1, 5):
+        y_line = sy - 76 + i * 30
+        pygame.draw.line(surf, (230, 195, 140), (sx-26, y_line), (sx+26, y_line), 1)
+    # Bolos (triángulo)
+    pin_pos = [(0,-60),(-8,-72),(8,-72),(0,-84)]
+    for px_, py_ in pin_pos:
+        pygame.draw.ellipse(surf, (245,245,245), (sx+px_-5, sy+py_-8, 10, 16))
+        pygame.draw.rect(surf, (200,30,30), (sx+px_-4, sy+py_-2, 8, 3))
+    # Bola
+    pygame.draw.circle(surf, (40, 40, 80), (sx, sy+50), 10)
+    pygame.draw.circle(surf, (80, 80, 160), (sx-3, sy+46), 3)
+
+
+def _draw_dice_table(surf, cx, cy, cam_x, cam_y):
+    sx, sy = cx - cam_x, cy - cam_y
+    tw, th = 140, 70
+    # Mesa
+    pygame.draw.rect(surf, C["table_edge"], (sx-tw//2-4, sy-th//2-4, tw+8, th+8), border_radius=10)
+    pygame.draw.rect(surf, C["felt_poker"], (sx-tw//2, sy-th//2, tw, th), border_radius=8)
+    # Dos dados
+    for dx_ in [-22, 22]:
+        dr = pygame.Rect(sx+dx_-12, sy-12, 24, 24)
+        pygame.draw.rect(surf, (250, 248, 240), dr, border_radius=5)
+        pygame.draw.rect(surf, C["ui_border"], dr, 2, border_radius=5)
+        # Puntos de dado (valor 4)
+        for dpx, dpy in [(-5,-5),(5,-5),(-5,5),(5,5)]:
+            pygame.draw.circle(surf, (20,20,30), (sx+dx_+dpx, sy+dpy), 3)
+
+
 # ════════════════════════════════════════════════════════════════════
 #  CLASSE World  — interfície unificada (TMX o fallback)
 # ════════════════════════════════════════════════════════════════════
@@ -525,17 +634,41 @@ class World:
             _draw_blackjack_table(surf, bz.centerx, bz.top+2*bz.height//3, cam_x, cam_y)
         rz = ZONES.get("roulette")
         if rz:
-            _draw_roulette_table(surf, rz.centerx, rz.centery, cam_x, cam_y)
+            _draw_roulette_table(surf, rz.centerx - 80, rz.centery, cam_x, cam_y)
+            _draw_roulette_table(surf, rz.centerx + 80, rz.centery, cam_x, cam_y)
+        sz = ZONES.get("slots")
+        if sz:
+            for i in range(3):
+                _draw_slot_machine(surf, sz.centerx, sz.top + 40 + i*60, cam_x, cam_y)
+        bwz = ZONES.get("bowling")
+        if bwz:
+            _draw_bowling_lane(surf, bwz.centerx - 60, bwz.centery, cam_x, cam_y)
+            _draw_bowling_lane(surf, bwz.centerx + 60, bwz.centery, cam_x, cam_y)
+        dz = ZONES.get("dice_duel")
+        if dz:
+            _draw_dice_table(surf, dz.centerx - 70, dz.centery, cam_x, cam_y)
+            _draw_dice_table(surf, dz.centerx + 70, dz.centery, cam_x, cam_y)
 
         # Senyals neó
-        if pz: _draw_neon_sign(surf, pz.left-cam_x, pz.top-28-cam_y, "◆ POKER ◆", C["neon_red"])
-        if bz: _draw_neon_sign(surf, bz.left-cam_x, bz.top-28-cam_y, "♠ BLACKJACK ♠", C["neon_cyan"])
-        if rz: _draw_neon_sign(surf, rz.left-cam_x, rz.top-28-cam_y, "● RULETA ●", C["neon_gold"])
+        if pz:  _draw_neon_sign(surf, pz.left-cam_x,  pz.top-28-cam_y,  "◆ POKER ◆",        C["neon_red"])
+        if bz:  _draw_neon_sign(surf, bz.left-cam_x,  bz.top-28-cam_y,  "♠ BLACKJACK ♠",    C["neon_cyan"])
+        if rz:  _draw_neon_sign(surf, rz.left-cam_x,  rz.top-28-cam_y,  "● RULETA ●",        C["neon_gold"])
+        if sz:  _draw_neon_sign(surf, sz.left-cam_x,  sz.top-28-cam_y,  "🎰 TRAGAPERRAS",    C["neon_gold"])
+        if bwz: _draw_neon_sign(surf, bwz.left-cam_x, bwz.top-28-cam_y, "🎳 BOWLING",        (100, 200, 255))
+        if dz:  _draw_neon_sign(surf, dz.left-cam_x,  dz.top-28-cam_y,  "🎲 DADOS",          (200, 150, 255))
         _draw_neon_sign(surf, SCREEN_W//2-130, 18, "✦  GRAND CASINO ROYAL  ✦", C["neon_gold"])
 
         # Aureoles de zona
+        glow_colors = {
+            "poker":     C["neon_red"],
+            "blackjack": C["neon_cyan"],
+            "roulette":  C["neon_gold"],
+            "slots":     (200, 100, 255),
+            "bowling":   (100, 200, 255),
+            "dice_duel": (180, 255, 120),
+        }
         for zk, zone in ZONES.items():
-            gc = {"poker":C["neon_red"],"blackjack":C["neon_cyan"],"roulette":C["neon_gold"]}.get(zk,C["neon_gold"])
+            gc = glow_colors.get(zk, C["neon_gold"])
             a  = max(20, min(60, self._lamp_alpha//4))
             gs = pygame.Surface((zone.width+20, zone.height+20), pygame.SRCALPHA)
             pygame.draw.rect(gs, (*gc, a), (0,0,zone.width+20,zone.height+20), border_radius=12)
@@ -571,12 +704,15 @@ def _patch_is_solid(tiled_world):
 def _init_default_zones():
     global ZONES, ZONE_INTERACT
     ZONES = {
-        "poker":     pygame.Rect(4*TILE,  3*TILE,  12*TILE, 10*TILE),
-        "blackjack": pygame.Rect(22*TILE, 3*TILE,  12*TILE, 10*TILE),
-        "roulette":  pygame.Rect(13*TILE, 22*TILE, 14*TILE, 12*TILE),
+        "poker":     pygame.Rect(2*TILE,   2*TILE,  14*TILE, 12*TILE),
+        "blackjack": pygame.Rect(20*TILE,  2*TILE,  16*TILE, 12*TILE),
+        "roulette":  pygame.Rect(10*TILE, 16*TILE,  28*TILE, 14*TILE),
+        "slots":     pygame.Rect(2*TILE,  16*TILE,   8*TILE, 12*TILE),
+        "bowling":   pygame.Rect(38*TILE,  4*TILE,  10*TILE, 32*TILE),
+        "dice_duel": pygame.Rect(10*TILE, 32*TILE,  28*TILE,  6*TILE),
     }
     ZONE_INTERACT = {
-        k: pygame.Rect(v.centerx-TILE, v.centery-TILE, TILE*2, TILE*2)
+        k: pygame.Rect(v.centerx - TILE, v.centery - TILE, TILE*2, TILE*2)
         for k, v in ZONES.items()
     }
 
